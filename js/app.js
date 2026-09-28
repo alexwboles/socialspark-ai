@@ -92,7 +92,7 @@
     renderWeek();
     $('#results').hidden = false;
     $('#results').scrollIntoView({ behavior: 'smooth' });
-    toast('Your week of posts is ready! 🎉');
+    toast('Your week of posts is ready!');
   }
 
   // -------------------------------------------------------------- render
@@ -122,7 +122,7 @@
           <div class="post-day">${esc(post.day)}</div>
           <div class="post-theme">${esc(post.theme)}</div>
         </div>
-        <button class="icon-btn posted-btn" title="Mark as posted" aria-label="Mark as posted">${postedDays[post.dayIndex] ? '✅' : '⭕'}</button>
+        <button class="icon-btn posted-btn" title="Mark as posted" aria-label="Mark as posted">${postedDays[post.dayIndex] ? '✓ Posted' : 'Mark posted'}</button>
       </div>
       ${photoDataUrl ? `<img class="post-photo" src="${photoDataUrl}" alt="Job photo">` : ''}
       <div class="tone-tabs" role="tablist">
@@ -130,10 +130,10 @@
       </div>
       <p class="caption"></p>
       <div class="htags">${tags}</div>
-      <div class="best-time">⏰ Best time: <strong>${esc(post.bestTime)}</strong><span class="why">${esc(post.bestTimeReason)}</span></div>
+      <div class="best-time">Best time: <strong>${esc(post.bestTime)}</strong><span class="why">${esc(post.bestTimeReason)}</span></div>
       <div class="post-actions">
-        <button class="btn small copy-btn">📋 Copy</button>
-        <button class="btn small ghost bank-btn">⭐ Save</button>
+        <button class="btn small copy-btn">Copy</button>
+        <button class="btn small ghost bank-btn">Save</button>
       </div>
     `;
 
@@ -158,7 +158,7 @@
       );
       try {
         await navigator.clipboard.writeText(text);
-        toast('Copied — paste it into your social app! 📋');
+        toast('Copied — paste it into your social app!');
       } catch (_) {
         // Fallback for non-secure contexts
         const ta = document.createElement('textarea');
@@ -167,7 +167,7 @@
         ta.select();
         try {
           document.execCommand('copy');
-          toast('Copied — paste it into your social app! 📋');
+          toast('Copied — paste it into your social app!');
         } catch (__) {
           toast('Copy failed — select the text manually.');
         }
@@ -184,8 +184,8 @@
       postedDays[i] = !postedDays[i];
       saveJson(LS_WEEK, { week, postedDays });
       card.classList.toggle('posted', !!postedDays[i]);
-      card.querySelector('.posted-btn').textContent = postedDays[i] ? '✅' : '⭕';
-      toast(postedDays[i] ? `${post.day} marked as posted! 🎉` : `${post.day} unmarked.`);
+      card.querySelector('.posted-btn').textContent = postedDays[i] ? '✓ Posted' : 'Mark posted';
+      toast(postedDays[i] ? `${post.day} marked as posted.` : `${post.day} unmarked.`);
     });
 
     return card;
@@ -209,7 +209,7 @@
     });
     saveJson(LS_BANK, bank.slice(0, 100));
     renderBank();
-    toast('Saved to your content bank ⭐');
+    toast('Saved to your content bank.');
   }
 
   function renderBank() {
@@ -224,15 +224,15 @@
         <div class="bank-meta">${esc(item.day)} · ${esc(item.theme)} · ${esc(TONE_LABEL[item.tone] || item.tone)}</div>
         <p class="bank-text"></p>
         <div class="bank-actions">
-          <button class="btn small copy-btn">📋 Copy</button>
-          <button class="btn small ghost del-btn">🗑 Delete</button>
+          <button class="btn small copy-btn">Copy</button>
+          <button class="btn small ghost del-btn">Delete</button>
         </div>
       `;
       el.querySelector('.bank-text').textContent = item.text;
       el.querySelector('.copy-btn').addEventListener('click', async () => {
         try {
           await navigator.clipboard.writeText(item.text);
-          toast('Copied! 📋');
+          toast('Copied!');
         } catch (_) {
           toast('Copy failed — select the text manually.');
         }
@@ -259,7 +259,7 @@
       'Deep-cleaned a 3-bed rental top to bottom including carpets, grout, and inside all appliances',
     ];
     $('#jobDesc').value = samples[Math.floor(Math.random() * samples.length)];
-    toast('Sample job loaded — hit Generate! ✨');
+    toast('Sample job loaded — hit Generate!');
   }
 
   // ----------------------------------------------------------------- init
