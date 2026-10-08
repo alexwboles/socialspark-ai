@@ -313,6 +313,97 @@ const SocialSpark = (() => {
     return `${post.captions[t]}\n\n${post.hashtags.join(' ')}`;
   }
 
+  /** Whole week as a Markdown document (for download / backup). */
+  function weekToMarkdown(week, tone) {
+    const t = ['professional', 'friendly', 'funny'].includes(tone) ? tone : 'friendly';
+    const lines = [`# ${week.businessName} — week of posts`, `_${week.tradeLabel}_`, ''];
+    week.posts.forEach((p) => {
+      lines.push(`## ${p.day} — ${p.theme}`);
+      lines.push(`Best time: **${p.bestTime}** — ${p.bestTimeReason}`);
+      lines.push('');
+      lines.push(p.captions[t]);
+      lines.push('');
+      lines.push(p.hashtags.join(' '));
+      lines.push('');
+    });
+    return lines.join('\n');
+  }
+
+  /** Plain-text whole-week copy (day headers + copy-ready posts). */
+  function weekToPlainText(week, tone) {
+    return week.posts
+      .map((p) => `${p.day} — ${p.theme} (best: ${p.bestTime})\n${formatPost(p, tone)}`)
+      .join('\n\n---\n\n');
+  }
+
+  // Platform caption limits (characters). Over the limit = flagged.
+  const PLATFORM_LIMITS = { X: 280, Instagram: 2200, LinkedIn: 3000, Facebook: 63206 };
+
+  /** Character count + per-platform over-limit flags for a caption. */
+  function platformCheck(text) {
+    const chars = [...String(text || '')].length; // code points, not UTF-16 units
+    const over = Object.keys(PLATFORM_LIMITS).filter((p) => chars > PLATFORM_LIMITS[p]);
+    return { chars, over, limits: PLATFORM_LIMITS };
+  }
+
+  /** Next upcoming post slot at/after `from` (Date or ISO string; default now).
+   *  Parses each post's bestTime ("6:30 PM") into the next weekly occurrence.
+   *  `skip` (optional): array of dayIndex values already posted — they are skipped. */
+  function nextPostAt(posts, from, skip) {
+    const base = from ? new Date(from) : new Date();
+    if (isNaN(base.getTime())) throw new Error('Invalid from date');
+    const skipSet = new Set(skip || []);
+    const dayIndex = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
+    const parseTime = (t) => {
+      const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(t).trim());
+      if (!m) return null;
+      let h = Number(m[1]) % 12;
+      if (/pm/i.test(m[3])) h += 12;
+      return { h, min: Number(m[2]) };
+    };
+    let best = null;
+    posts.forEach((p) => {
+      if (skipSet.has(p.dayIndex)) return;
+      const tm = parseTime(p.bestTime);
+      const dow = dayIndex[p.day];
+      if (!tm || dow == null) return;
+      const cand = new Date(base);
+      let delta = (dow - base.getDay() + 7) % 7;
+      cand.setDate(cand.getDate() + delta);
+      cand.setHours(tm.h, tm.min, 0, 0);
+      if (cand < base) cand.setDate(cand.getDate() + 7);
+      if (!best || cand < best.when) {
+        best = {
+          day: p.day, theme: p.theme, time: p.bestTime, themeId: p.themeId,
+          when: cand, iso: cand.toISOString(),
+          inHours: Math.round((cand - base) / 3600000)
+        };
+      }
+    });
+    return best;
+  }
+
+  /** Validate an imported content-bank JSON string. Returns the items or throws. */
+  function parseBankImport(text) {
+    let arr;
+    try { arr = JSON.parse(text); } catch (_) { throw new Error('Not valid JSON.'); }
+    if (!Array.isArray(arr)) throw new Error('Import must be a JSON array of saved posts.');
+    const items = arr.map((it, i) => {
+      if (!it || typeof it.text !== 'string' || !it.text.trim())
+        throw new Error(`Item ${i + 1} is missing its post text.`);
+      return {
+        id: Date.now() + i,
+        day: String(it.day || ''),
+        theme: String(it.theme || ''),
+        tone: ['professional', 'friendly', 'funny'].includes(it.tone) ? it.tone : 'friendly',
+        text: it.text
+      };
+    });
+    if (!items.length) throw new Error('Nothing to import.');
+    if (items.length > 100) throw new Error('Too many items (max 100).');
+    return items;
+  }
+
   /** Placeholder for optional OpenAI enhancement — never required. */
   function openAiAvailable() {
     try {
@@ -329,10 +420,16 @@ const SocialSpark = (() => {
     TRADE_IDS,
     THEMES: THEMES.map((t) => ({ id: t.id, name: t.name })),
     BEST_TIMES,
+    PLATFORM_LIMITS,
     extractKeywords,
     buildHashtags,
     generateWeek,
     formatPost,
+    weekToMarkdown,
+    weekToPlainText,
+    platformCheck,
+    nextPostAt,
+    parseBankImport,
     openAiAvailable,
   };
 })();

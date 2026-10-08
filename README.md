@@ -21,6 +21,10 @@ One input → a full week content calendar:
    - Trade-specific + keyword hashtags
    - Best time to post that day (with the *why*)
 4. **Copy → post → check off.** Save favorites to your content bank for reuse.
+5. **"Up next" scheduler** — always shows your next posting slot (skips days you've marked posted).
+6. **Character counts** — every caption shows its length and warns when it's too long for X/Instagram/LinkedIn.
+7. **Copy all / download week** — one click copies all 7 posts or downloads the week as a Markdown file.
+8. **Content bank search + backup** — search saved posts; export/import the bank as JSON for safekeeping.
 
 Everything runs **100% in the browser**. No account, no server, no uploads — your business info never leaves the device. Works offline by just opening `index.html`.
 

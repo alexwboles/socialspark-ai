@@ -96,6 +96,23 @@
   }
 
   // -------------------------------------------------------------- render
+  function renderUpNext() {
+    const box = $('#upNext');
+    if (!week || !week.posts || !week.posts.length) { box.hidden = true; return; }
+    try {
+      const n = SocialSpark.nextPostAt(
+        week.posts, undefined,
+        Object.keys(postedDays).filter((k) => postedDays[k]).map(Number)
+      );
+      if (!n) { box.hidden = true; return; }
+      const when = n.inHours < 24
+        ? `in about ${n.inHours} hour${n.inHours === 1 ? '' : 's'}`
+        : `in about ${Math.round(n.inHours / 24)} day${Math.round(n.inHours / 24) === 1 ? '' : 's'}`;
+      box.innerHTML = `<strong>Up next:</strong> ${esc(n.day)} ${esc(n.time)} — ${esc(n.theme)} <span class="muted">(${when})</span>`;
+      box.hidden = false;
+    } catch (_) { box.hidden = true; }
+  }
+
   function renderWeek() {
     if (!week) return;
     $('#weekTitle').textContent = `${week.businessName} — this week's posts`;
@@ -106,6 +123,7 @@
     week.posts.forEach((post) => {
       grid.appendChild(postCard(post));
     });
+    renderUpNext();
     renderBank();
   }
 
@@ -129,6 +147,7 @@
         ${TONES.map((t) => `<button class="tone-tab${t === tone ? ' active' : ''}" data-tone="${t}">${TONE_LABEL[t]}</button>`).join('')}
       </div>
       <p class="caption"></p>
+      <div class="char-count"></div>
       <div class="htags">${tags}</div>
       <div class="best-time">Best time: <strong>${esc(post.bestTime)}</strong><span class="why">${esc(post.bestTimeReason)}</span></div>
       <div class="post-actions">
@@ -138,7 +157,13 @@
     `;
 
     const updateCaption = () => {
-      card.querySelector('.caption').textContent = post.captions[card._tone || tone];
+      const cap = post.captions[card._tone || tone];
+      card.querySelector('.caption').textContent = cap;
+      const cc = card.querySelector('.char-count');
+      const chk = SocialSpark.platformCheck(cap);
+      cc.textContent = `${chk.chars} characters` +
+        (chk.over.length ? ` — too long for ${chk.over.join(', ')}` : '');
+      cc.classList.toggle('warn', chk.over.length > 0);
     };
     card._tone = tone;
     updateCaption();
@@ -185,6 +210,7 @@
       saveJson(LS_WEEK, { week, postedDays });
       card.classList.toggle('posted', !!postedDays[i]);
       card.querySelector('.posted-btn').textContent = postedDays[i] ? '✓ Posted' : 'Mark posted';
+      renderUpNext();
       toast(postedDays[i] ? `${post.day} marked as posted.` : `${post.day} unmarked.`);
     });
 
@@ -214,10 +240,18 @@
 
   function renderBank() {
     const bank = getBank();
+    const q = ($('#bankSearch') && $('#bankSearch').value || '').trim().toLowerCase();
+    const shown = q
+      ? bank.filter((b) => (b.text + ' ' + b.day + ' ' + b.theme + ' ' + b.tone).toLowerCase().includes(q))
+      : bank;
     const wrap = $('#bankList');
     $('#bankEmpty').hidden = bank.length > 0;
     wrap.innerHTML = '';
-    bank.forEach((item) => {
+    if (q && !shown.length && bank.length) {
+      wrap.innerHTML = '<p class="muted">No saved posts match your search.</p>';
+      return;
+    }
+    shown.forEach((item) => {
       const el = document.createElement('div');
       el.className = 'bank-item';
       el.innerHTML = `
@@ -262,13 +296,85 @@
     toast('Sample job loaded — hit Generate!');
   }
 
+  function downloadText(filename, text, mime) {
+    const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+
+  function onDownloadWeek() {
+    if (!week) { toast('Generate a week first.'); return; }
+    downloadText(
+      `${(week.businessName || 'socialspark').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-week.md`,
+      SocialSpark.weekToMarkdown(week, tone),
+      'text/markdown;charset=utf-8'
+    );
+    toast('Week downloaded as Markdown.');
+  }
+
+  async function copyText(text, okMsg) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(okMsg);
+    } catch (_) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); toast(okMsg); }
+      catch (__) { toast('Copy failed — select the text manually.'); }
+      ta.remove();
+    }
+  }
+
+  function onCopyAll() {
+    if (!week) { toast('Generate a week first.'); return; }
+    copyText(SocialSpark.weekToPlainText(week, tone), 'Whole week copied — paste it anywhere!');
+  }
+
+  function onBankExport() {
+    const bank = getBank();
+    if (!bank.length) { toast('Nothing in the bank to export.'); return; }
+    downloadText('socialspark-bank.json', JSON.stringify(bank, null, 2), 'application/json');
+    toast('Content bank exported.');
+  }
+
+  function onBankImportFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const items = SocialSpark.parseBankImport(String(reader.result));
+        const merged = items.concat(getBank()).slice(0, 100);
+        saveJson(LS_BANK, merged);
+        renderBank();
+        toast(`Imported ${items.length} post${items.length === 1 ? '' : 's'}.`);
+      } catch (err) {
+        toast('Import failed: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
   // ----------------------------------------------------------------- init
   function init() {
     buildTradeOptions();
     $('#generateBtn').addEventListener('click', onGenerate);
     $('#regenBtn').addEventListener('click', onRegenerate);
+    $('#copyAllBtn').addEventListener('click', onCopyAll);
+    $('#dlWeekBtn').addEventListener('click', onDownloadWeek);
     $('#surpriseBtn').addEventListener('click', onSurprise);
     $('#photo').addEventListener('change', onPhotoChange);
+    $('#bankSearch').addEventListener('input', renderBank);
+    $('#bankExportBtn').addEventListener('click', onBankExport);
+    $('#bankImportBtn').addEventListener('click', () => $('#bankImportFile').click());
+    $('#bankImportFile').addEventListener('change', onBankImportFile);
     $$('.global-tone .tone-tab').forEach((btn) => {
       btn.addEventListener('click', () => {
         $$('.global-tone .tone-tab').forEach((b) => b.classList.remove('active'));

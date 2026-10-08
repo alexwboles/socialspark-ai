@@ -102,6 +102,7 @@ input[type="text"]:focus, select:focus, textarea:focus {
 }
 textarea { resize: vertical; min-height: 76px; }
 input[type="file"] { display: block; margin-top: 8px; font-size: 13.5px; color: var(--ink-soft); }
+#bankImportFile { display: none; }
 .photo-preview {
   display: block; max-width: 100%; max-height: 220px; border-radius: 0;
   border: 1px solid var(--line); margin: 4px 0 12px; object-fit: cover;
@@ -208,6 +209,17 @@ input[type="file"] { display: block; margin-top: 8px; font-size: 13.5px; color: 
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .foot { text-align: center; color: var(--muted); font-size: 13px; padding: 8px 0 4px; }
 .foot a { color: var(--accent-deep); }
+
+/* ---------- week tools: up-next, char counts, bank toolbar ---------- */
+.results-actions { display: flex; gap: 8px; flex-wrap: wrap; flex: none; }
+.up-next { border-left: 4px solid var(--accent); background: #fff; padding: 10px 14px; margin: 10px 0 14px;
+  font-size: 14px; box-shadow: 0 1px 4px rgba(20,32,29,.08); }
+.char-count { font-size: 12px; color: var(--muted); margin: 6px 14px 0; }
+.char-count.warn { color: #b91c1c; font-weight: 650; }
+.bank-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 10px 0 4px; }
+.bank-toolbar input[type="search"] { flex: 1 1 200px; padding: 9px 12px; font: inherit; font-size: 14px;
+  border: 1px solid var(--line); border-radius: 0; background: #fff; color: var(--ink); }
+.bank-toolbar .btn { flex: none; }
 
 /* ---------- responsive ---------- */
 @media (max-width: 640px) {

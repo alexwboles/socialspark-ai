@@ -69,14 +69,25 @@
           <h2 id="weekTitle">Your week of posts</h2>
           <p class="muted" id="weekSub"></p>
         </div>
-        <button class="btn ghost" id="regenBtn" type="button">Regenerate</button>
+        <div class="results-actions">
+          <button class="btn ghost" id="regenBtn" type="button">Regenerate</button>
+          <button class="btn ghost" id="copyAllBtn" type="button">Copy all</button>
+          <button class="btn ghost" id="dlWeekBtn" type="button">Download .md</button>
+        </div>
       </div>
+      <div class="up-next" id="upNext" hidden></div>
       <div class="week-grid" id="weekGrid"></div>
     </section>
 
     <section class="card" id="bankCard">
       <h2>Content bank</h2>
       <p class="muted">Your saved favorites live here — reuse them anytime.</p>
+      <div class="bank-toolbar">
+        <input type="search" id="bankSearch" placeholder="Search saved posts…" aria-label="Search content bank">
+        <button class="btn small ghost" id="bankExportBtn" type="button">Export JSON</button>
+        <button class="btn small ghost" id="bankImportBtn" type="button">Import JSON</button>
+        <input type="file" id="bankImportFile" accept="application/json" hidden>
+      </div>
       <p class="muted empty" id="bankEmpty">Nothing saved yet. Hit <strong>Save</strong> on any post above.</p>
       <div id="bankList" class="bank-list"></div>
     </section>

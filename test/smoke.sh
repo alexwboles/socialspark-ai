@@ -88,6 +88,60 @@ if(!t.includes('#')) throw new Error('no hashtags in formatted post');
 # 17: README mentions pricing
 if grep -qi 'pricing' README.md; then ok "README mentions pricing"; else bad "README missing pricing"; fi
 
+# 18: weekToMarkdown covers all 7 days with business name
+if node -e "
+const g=require('./js/generator.js');
+const w=g.generateWeek({businessName:'Test Co',trade:'plumber',jobDescription:'Replaced a leaking water heater and repiped the laundry room'});
+const md=g.weekToMarkdown(w,'professional');
+if(!md.startsWith('# Test Co')) throw new Error('title');
+if((md.match(/## /g)||[]).length!==7) throw new Error('days');
+if(!md.includes('Best time:')) throw new Error('best time');
+"; then ok "weekToMarkdown covers all 7 days"; else bad "weekToMarkdown broken"; fi
+
+# 19: platformCheck counts code points and flags over-limit platforms
+if node -e "
+const g=require('./js/generator.js');
+const ok1=g.platformCheck('hello');
+if(ok1.chars!==5||ok1.over.length) throw new Error('short text flagged');
+const over=g.platformCheck('x'.repeat(300));
+if(!over.over.includes('X')) throw new Error('X limit not flagged');
+if(over.over.includes('Instagram')) throw new Error('Instagram wrongly flagged');
+const emoji=g.platformCheck('😀'.repeat(10));
+if(emoji.chars!==10) throw new Error('emoji counted as '+emoji.chars);
+"; then ok "platformCheck: counts + over-limit flags"; else bad "platformCheck broken"; fi
+
+# 20: nextPostAt is deterministic and honors skip
+if node -e "
+const g=require('./js/generator.js');
+const w=g.generateWeek({businessName:'Test Co',trade:'plumber',jobDescription:'Replaced a leaking water heater and repiped the laundry room'});
+const n=g.nextPostAt(w.posts,'2026-10-07T12:00:00');
+if(!n||n.day!=='Wednesday'||n.time!=='7:00 PM') throw new Error('next='+JSON.stringify(n));
+const s=g.nextPostAt(w.posts,'2026-10-07T12:00:00',[2]);
+if(!s||s.day!=='Thursday') throw new Error('skip broken: '+JSON.stringify(s));
+const all=g.nextPostAt(w.posts,'2026-10-07T12:00:00',[0,1,2,3,4,5,6]);
+if(all!==null) throw new Error('all-posted should be null');
+"; then ok "nextPostAt: deterministic + skip posted days"; else bad "nextPostAt broken"; fi
+
+# 21: parseBankImport validates and rejects garbage
+if node -e "
+const g=require('./js/generator.js');
+const items=g.parseBankImport(JSON.stringify([{day:'Mon',theme:'T',tone:'funny',text:'hello world'}]));
+if(items.length!==1||items[0].tone!=='funny') throw new Error('valid import');
+for(const bad of ['nope','{\"a\":1}','[]','[{\"text\":\"\"}]']){
+  try { g.parseBankImport(bad); throw new Error('accepted: '+bad); } catch(e){ if(/accepted/.test(e.message)) throw e; }
+}
+"; then ok "parseBankImport validates + rejects garbage"; else bad "parseBankImport broken"; fi
+
+# 22: index.html wires the new week/bank tools
+for id in dlWeekBtn copyAllBtn upNext bankSearch bankExportBtn bankImportBtn bankImportFile; do
+  if grep -q "id=\"$id\"" index.html; then ok "index.html has #$id"; else bad "index.html missing #$id"; fi
+done
+
+# 23: app.js uses the new engine functions
+for fn in weekToMarkdown weekToPlainText platformCheck nextPostAt parseBankImport renderUpNext; do
+  if grep -q "$fn" js/app.js; then ok "app.js uses $fn"; else bad "app.js missing $fn"; fi
+done
+
 echo ""
 echo "smoke: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

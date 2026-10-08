@@ -86,6 +86,36 @@ if(a1!==a2) throw new Error('not deterministic');
 if(a1===b) throw new Error('tip/caption identical for different jobs');
 "; then ok "flow 7: deterministic per job, varies across jobs"; else bad "flow 7 failed"; fi
 
+# Flow 8: week markdown differs by tone; plain-text has all 7 posts with separators
+if run "
+const g=require('./js/generator.js');
+const w=g.generateWeek({businessName:'G Co',trade:'painter',jobDescription:'Repainted a full home exterior in a modern coastal palette with crisp trim work'});
+const a=g.weekToMarkdown(w,'professional'), b=g.weekToMarkdown(w,'funny');
+if(a===b) throw new Error('tone variants identical in markdown');
+const txt=g.weekToPlainText(w,'friendly');
+if((txt.match(/---/g)||[]).length!==6) throw new Error('separators: '+txt.length);
+for(const d of ['Monday','Sunday']) if(!txt.includes(d)) throw new Error('missing '+d);
+"; then ok "flow 8: markdown + plain-text week exports"; else bad "flow 8 failed"; fi
+
+# Flow 9: up-next scheduler picks the chronologically nearest future slot
+if run "
+const g=require('./js/generator.js');
+const w=g.generateWeek({businessName:'H Co',trade:'cleaner',jobDescription:'Deep cleaned a three bedroom rental including carpets grout and appliances'});
+const n1=g.nextPostAt(w.posts,'2026-10-05T07:00:00');
+if(n1.day!=='Monday'||n1.inHours!==11&&n1.inHours!==12) throw new Error('mon 6:30pm expected, got '+n1.day+' '+n1.inHours);
+const n2=g.nextPostAt(w.posts,'2026-10-05T19:00:00');
+if(n2.day!=='Tuesday') throw new Error('after Monday slot should be Tuesday, got '+n2.day);
+"; then ok "flow 9: scheduler picks nearest future slot"; else bad "flow 9 failed"; fi
+
+# Flow 10: bank import round-trip — exported shape re-imports cleanly
+if run "
+const g=require('./js/generator.js');
+const w=g.generateWeek({businessName:'I Co',trade:'roofer',jobDescription:'Replaced storm damaged shingles and installed new ridge vent on a ranch home'});
+const bank=[{id:1,day:w.posts[0].day,theme:w.posts[0].theme,tone:'professional',text:g.formatPost({captions:w.posts[0].captions,hashtags:w.posts[0].hashtags},'professional')}];
+const back=g.parseBankImport(JSON.stringify(bank));
+if(back.length!==1||!back[0].text.includes('#')) throw new Error('round-trip lost text');
+"; then ok "flow 10: bank export/import round-trip"; else bad "flow 10 failed"; fi
+
 echo ""
 echo "e2e: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
