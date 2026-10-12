@@ -142,6 +142,23 @@ for fn in weekToMarkdown weekToPlainText platformCheck nextPostAt parseBankImpor
   if grep -q "$fn" js/app.js; then ok "app.js uses $fn"; else bad "app.js missing $fn"; fi
 done
 
+# 24: new features wired — business profile, ICS export, posting stats
+for fn in sanitizeProfile withCallToAction weekToICS postingStats; do
+  if node -e "const g=require('./js/generator.js'); if(typeof g.$fn!=='function') throw new Error('no fn')"; then
+    ok "generator exports $fn"
+  else
+    bad "generator missing $fn"
+  fi
+done
+for needle in bizHandle dlIcsBtn postedLog getProfile; do
+  if grep -q "$needle" js/app.js; then ok "app.js wires $needle"; else bad "app.js missing $needle"; fi
+done
+if grep -q 'id="bizHandle"' index.html && grep -q 'id="dlIcsBtn"' index.html; then
+  ok "index.html has profile fields + ICS button"
+else
+  bad "index.html missing profile fields or ICS button"
+fi
+
 echo ""
 echo "smoke: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

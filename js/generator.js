@@ -307,10 +307,99 @@ const SocialSpark = (() => {
     return h;
   }
 
-  /** Copy-ready text for one post in the chosen tone. */
-  function formatPost(post, tone) {
+  /** Copy-ready text for one post in the chosen tone.
+   *  profile (optional): {handle, phone, cta} — a call-to-action line is
+   *  appended when any of them are set. */
+  function formatPost(post, tone, profile) {
     const t = ['professional', 'friendly', 'funny'].includes(tone) ? tone : 'friendly';
-    return `${post.captions[t]}\n\n${post.hashtags.join(' ')}`;
+    let text = `${post.captions[t]}\n\n${post.hashtags.join(' ')}`;
+    return withCallToAction(text, profile);
+  }
+
+  /** Normalize a business profile. All fields optional. */
+  function sanitizeProfile(p) {
+    p = p || {};
+    const clean = (s, n) => String(s || '').trim().slice(0, n);
+    let handle = clean(p.handle, 40);
+    if (handle && handle[0] !== '@') handle = '@' + handle;
+    return {
+      handle,
+      phone: clean(p.phone, 30),
+      cta: clean(p.cta, 120),
+    };
+  }
+
+  /** Append the profile's call-to-action line to copy-ready post text. */
+  function withCallToAction(text, profile) {
+    const prof = sanitizeProfile(profile);
+    const bits = [];
+    if (prof.cta) bits.push(prof.cta);
+    if (prof.phone) bits.push(prof.phone);
+    if (prof.handle) bits.push(prof.handle);
+    if (!bits.length) return String(text || '');
+    return String(text || '') + '\n\n' + bits.join(' · ');
+  }
+
+  /** Whole-week posting schedule as an .ics calendar file.
+   *  Each post's next real-world slot is resolved from its bestTime
+   *  relative to `from` (default now). 30-minute events, floating local time. */
+  function weekToICS(week, tone, profile, from) {
+    const escICS = (s) => String(s == null ? '' : s)
+      .replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,')
+      .replace(/\r?\n/g, '\\n');
+    const pad = (n) => (n < 10 ? '0' : '') + n;
+    const stamp = (d) => d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) +
+      'T' + pad(d.getHours()) + pad(d.getMinutes()) + '00';
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//SocialSpark AI//Posting Schedule//EN',
+    ];
+    week.posts.forEach((p, i) => {
+      const slot = nextPostAt([p], from);
+      if (!slot) return;
+      const start = new Date(slot.when);
+      const end = new Date(start.getTime() + 30 * 60000);
+      lines.push('BEGIN:VEVENT');
+      lines.push('UID:socialspark-' +
+        (week.businessName || 'week').replace(/[^a-z0-9]+/gi, '-').toLowerCase() +
+        '-' + i + '@local');
+      lines.push('DTSTAMP:' + stamp(new Date()));
+      lines.push('DTSTART:' + stamp(start));
+      lines.push('DTEND:' + stamp(end));
+      lines.push('SUMMARY:' + escICS((week.businessName || 'SocialSpark') + ': ' + p.day + ' — ' + p.theme));
+      lines.push('DESCRIPTION:' + escICS(
+        formatPost(p, tone, profile) + '\n\nBest time: ' + p.bestTime + ' — ' + p.bestTimeReason));
+      lines.push('END:VEVENT');
+    });
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n') + '\r\n';
+  }
+
+  /** Posting stats from a log of {dayIndex, dateISO} entries.
+   *  Returns {total, thisMonth, streak}: streak = consecutive calendar days
+   *  ending today (or yesterday, when today has no post yet). */
+  function postingStats(log, now) {
+    const base = now ? new Date(now) : new Date();
+    if (isNaN(base.getTime())) throw new Error('Invalid now date');
+    const daySet = new Set();
+    (log || []).forEach((e) => {
+      const dt = new Date(e && e.dateISO);
+      if (!isNaN(dt.getTime())) daySet.add(dt.toISOString().slice(0, 10));
+    });
+    const days = Array.from(daySet).sort();
+    const monthKey = base.toISOString().slice(0, 7);
+    const thisMonth = days.filter((d) => d.slice(0, 7) === monthKey).length;
+    let streak = 0;
+    const cursor = new Date(base);
+    cursor.setHours(0, 0, 0, 0);
+    const key = (d) => d.toISOString().slice(0, 10);
+    if (!daySet.has(key(cursor))) cursor.setDate(cursor.getDate() - 1);
+    while (daySet.has(key(cursor))) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return { total: days.length, thisMonth, streak };
   }
 
   /** Whole week as a Markdown document (for download / backup). */
@@ -330,9 +419,9 @@ const SocialSpark = (() => {
   }
 
   /** Plain-text whole-week copy (day headers + copy-ready posts). */
-  function weekToPlainText(week, tone) {
+  function weekToPlainText(week, tone, profile) {
     return week.posts
-      .map((p) => `${p.day} — ${p.theme} (best: ${p.bestTime})\n${formatPost(p, tone)}`)
+      .map((p) => `${p.day} — ${p.theme} (best: ${p.bestTime})\n${formatPost(p, tone, profile)}`)
       .join('\n\n---\n\n');
   }
 
@@ -425,6 +514,10 @@ const SocialSpark = (() => {
     buildHashtags,
     generateWeek,
     formatPost,
+    sanitizeProfile,
+    withCallToAction,
+    weekToICS,
+    postingStats,
     weekToMarkdown,
     weekToPlainText,
     platformCheck,

@@ -116,6 +116,48 @@ const back=g.parseBankImport(JSON.stringify(bank));
 if(back.length!==1||!back[0].text.includes('#')) throw new Error('round-trip lost text');
 "; then ok "flow 10: bank export/import round-trip"; else bad "flow 10 failed"; fi
 
+# Flow 11: business profile CTA is appended to copied posts
+if run "
+const g=require('./js/generator.js');
+const w=g.generateWeek({businessName:'J Co',trade:'painter',jobDescription:'Repainted a two story craftsman exterior including siding and trim work'});
+const prof=g.sanitizeProfile({handle:'brightline',phone:'(555) 123-4567',cta:'Call for a free quote!'});
+if(prof.handle!=='@brightline') throw new Error('handle not normalized: '+prof.handle);
+const withCTA=g.formatPost({captions:w.posts[0].captions,hashtags:w.posts[0].hashtags},'friendly',prof);
+if(!withCTA.includes('Call for a free quote!')) throw new Error('cta missing');
+if(!withCTA.includes('(555) 123-4567')) throw new Error('phone missing');
+if(!withCTA.includes('@brightline')) throw new Error('handle missing');
+const plain=g.formatPost({captions:w.posts[0].captions,hashtags:w.posts[0].hashtags},'friendly');
+if(plain.includes('Call for a free quote!')) throw new Error('cta leaked without profile');
+"; then ok "flow 11: profile CTA appended only when profile given"; else bad "flow 11 failed"; fi
+
+# Flow 12: posting schedule exports as valid-ish .ics with CRLF endings
+if run "
+const g=require('./js/generator.js');
+const w=g.generateWeek({businessName:'K Co',trade:'hvac',jobDescription:'Installed a new high efficiency heat pump and smart thermostat in a ranch home'});
+const ics=g.weekToICS(w,'friendly',{},'2026-10-05T07:00:00');
+if((ics.match(/BEGIN:VEVENT/g)||[]).length!==7) throw new Error('expected 7 events');
+if(!ics.startsWith('BEGIN:VCALENDAR')) throw new Error('no calendar header');
+if(ics.includes('\n') && !ics.includes('\r\n')) throw new Error('LF without CRLF');
+if(/[^\\r]\\n/.test(ics)) throw new Error('bare LF found');
+if(!/DTSTART:\\d{8}T\\d{6}/.test(ics)) throw new Error('no DTSTART stamps');
+if(!ics.includes('SUMMARY:K Co: Monday')) throw new Error('summary missing');
+"; then ok "flow 12: weekToICS emits 7 events with CRLF endings"; else bad "flow 12 failed"; fi
+
+# Flow 13: posting stats — streaks, monthly counts
+if run "
+const g=require('./js/generator.js');
+const iso=(d)=>new Date(Date.UTC(2026,9,d)).toISOString();
+const log=[{dayIndex:0,dateISO:iso(12)},{dayIndex:1,dateISO:iso(11)},{dayIndex:2,dateISO:iso(10)}];
+const s=g.postingStats(log,'2026-10-12T12:00:00Z');
+if(s.streak!==3) throw new Error('streak should be 3, got '+s.streak);
+if(s.total!==3||s.thisMonth!==3) throw new Error('counts wrong: '+JSON.stringify(s));
+const gap=[{dayIndex:0,dateISO:iso(12)},{dayIndex:1,dateISO:iso(8)}];
+const s2=g.postingStats(gap,'2026-10-12T12:00:00Z');
+if(s2.streak!==1) throw new Error('streak should be 1 after a gap, got '+s2.streak);
+const empty=g.postingStats([],'2026-10-12T12:00:00Z');
+if(empty.streak!==0||empty.total!==0) throw new Error('empty log should be zeros');
+"; then ok "flow 13: postingStats streak + monthly counts"; else bad "flow 13 failed"; fi
+
 echo ""
 echo "e2e: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

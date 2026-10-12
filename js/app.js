@@ -6,13 +6,42 @@
 
   const LS_WEEK = 'socialspark.week.v1';
   const LS_BANK = 'socialspark.bank.v1';
+  const LS_PROFILE = 'socialspark.profile.v1';
+  const LS_LOG = 'socialspark.log.v1';
   const TONES = ['professional', 'friendly', 'funny'];
   const TONE_LABEL = { professional: 'Professional', friendly: 'Friendly', funny: 'Funny' };
 
   let week = null; // { businessName, trade, tradeLabel, posts: [...] }
   let tone = 'friendly';
   let postedDays = {}; // dayIndex -> true
+  let postedLog = []; // [{dayIndex, dateISO}] — posting history for stats
   let photoDataUrl = null;
+
+  function getProfile() {
+    return SocialSpark.sanitizeProfile(loadJson(LS_PROFILE, {}));
+  }
+
+  function readProfileFromForm() {
+    return SocialSpark.sanitizeProfile({
+      handle: $('#bizHandle').value,
+      phone: $('#bizPhone').value,
+      cta: $('#bizCta').value,
+    });
+  }
+
+  /* Record a posted day in the history log (dedupe: one entry per
+   * dayIndex per calendar day). */
+  function logPosted(dayIndex) {
+    const today = new Date().toISOString().slice(0, 10);
+    postedLog = postedLog.filter((e) => !(e.dayIndex === dayIndex && String(e.dateISO).slice(0, 10) === today));
+    postedLog.push({ dayIndex, dateISO: new Date().toISOString() });
+    saveJson(LS_LOG, postedLog.slice(-365));
+  }
+
+  function unlogPosted(dayIndex) {
+    postedLog = postedLog.filter((e) => e.dayIndex !== dayIndex);
+    saveJson(LS_LOG, postedLog.slice(-365));
+  }
 
   // ------------------------------------------------------------ helpers
   function esc(s) {
@@ -76,6 +105,8 @@
   }
 
   function onGenerate() {
+    const profile = readProfileFromForm();
+    saveJson(LS_PROFILE, profile);
     const input = {
       businessName: $('#bizName').value,
       trade: $('#trade').value,
@@ -108,7 +139,11 @@
       const when = n.inHours < 24
         ? `in about ${n.inHours} hour${n.inHours === 1 ? '' : 's'}`
         : `in about ${Math.round(n.inHours / 24)} day${Math.round(n.inHours / 24) === 1 ? '' : 's'}`;
-      box.innerHTML = `<strong>Up next:</strong> ${esc(n.day)} ${esc(n.time)} — ${esc(n.theme)} <span class="muted">(${when})</span>`;
+      const st = SocialSpark.postingStats(postedLog);
+      const stats = st.total
+        ? ` <span class="muted">· ${st.streak}-day streak · ${st.thisMonth} posted this month</span>`
+        : '';
+      box.innerHTML = `<strong>Up next:</strong> ${esc(n.day)} ${esc(n.time)} — ${esc(n.theme)} <span class="muted">(${when})</span>${stats}`;
       box.hidden = false;
     } catch (_) { box.hidden = true; }
   }
@@ -179,7 +214,8 @@
 
     card.querySelector('.copy-btn').addEventListener('click', async () => {
       const text = SocialSpark.formatPost(
-        { captions: post.captions, hashtags: post.hashtags }, card._tone || tone
+        { captions: post.captions, hashtags: post.hashtags }, card._tone || tone,
+        getProfile()
       );
       try {
         await navigator.clipboard.writeText(text);
@@ -207,6 +243,7 @@
     card.querySelector('.posted-btn').addEventListener('click', () => {
       const i = post.dayIndex;
       postedDays[i] = !postedDays[i];
+      if (postedDays[i]) logPosted(i); else unlogPosted(i);
       saveJson(LS_WEEK, { week, postedDays });
       card.classList.toggle('posted', !!postedDays[i]);
       card.querySelector('.posted-btn').textContent = postedDays[i] ? '✓ Posted' : 'Mark posted';
@@ -230,7 +267,8 @@
       theme: post.theme,
       tone: toneUsed,
       text: SocialSpark.formatPost(
-        { captions: post.captions, hashtags: post.hashtags }, toneUsed
+        { captions: post.captions, hashtags: post.hashtags }, toneUsed,
+        getProfile()
       ),
     });
     saveJson(LS_BANK, bank.slice(0, 100));
@@ -333,7 +371,17 @@
 
   function onCopyAll() {
     if (!week) { toast('Generate a week first.'); return; }
-    copyText(SocialSpark.weekToPlainText(week, tone), 'Whole week copied — paste it anywhere!');
+    copyText(SocialSpark.weekToPlainText(week, tone, getProfile()), 'Whole week copied — paste it anywhere!');
+  }
+
+  function onDownloadICS() {
+    if (!week) { toast('Generate a week first.'); return; }
+    downloadText(
+      `${(week.businessName || 'socialspark').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-schedule.ics`,
+      SocialSpark.weekToICS(week, tone, getProfile()),
+      'text/calendar;charset=utf-8'
+    );
+    toast('Posting schedule downloaded as .ics.');
   }
 
   function onBankExport() {
@@ -369,6 +417,7 @@
     $('#regenBtn').addEventListener('click', onRegenerate);
     $('#copyAllBtn').addEventListener('click', onCopyAll);
     $('#dlWeekBtn').addEventListener('click', onDownloadWeek);
+    $('#dlIcsBtn').addEventListener('click', onDownloadICS);
     $('#surpriseBtn').addEventListener('click', onSurprise);
     $('#photo').addEventListener('change', onPhotoChange);
     $('#bankSearch').addEventListener('input', renderBank);
@@ -385,6 +434,11 @@
     });
 
     const saved = loadJson(LS_WEEK, null);
+    postedLog = loadJson(LS_LOG, []);
+    const prof = getProfile();
+    if ($('#bizHandle')) $('#bizHandle').value = prof.handle || '';
+    if ($('#bizPhone')) $('#bizPhone').value = prof.phone || '';
+    if ($('#bizCta')) $('#bizCta').value = prof.cta || '';
     if (saved && saved.week && saved.week.posts && saved.week.posts.length === 7) {
       week = saved.week;
       postedDays = saved.postedDays || {};

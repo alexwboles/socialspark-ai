@@ -41,6 +41,17 @@
           <select id="trade"></select>
         </label>
       </div>
+      <div class="form-grid">
+        <label>Social handle <span class="hint">(optional)</span>
+          <input type="text" id="bizHandle" placeholder="@brightlineplumbing" maxlength="40">
+        </label>
+        <label>Phone <span class="hint">(optional — used in calls to action)</span>
+          <input type="text" id="bizPhone" placeholder="(555) 123-4567" maxlength="30">
+        </label>
+      </div>
+      <label>Call to action <span class="hint">(optional — appended to every copied post)</span>
+        <input type="text" id="bizCta" placeholder="e.g. Call today for a free quote!" maxlength="120">
+      </label>
       <label>What did you do? <span class="hint">(a sentence or two is plenty)</span>
         <textarea id="jobDesc" rows="3" maxlength="500"
           placeholder="e.g. Replaced a leaking water heater and repiped the laundry room with PEX"></textarea>
@@ -73,6 +84,7 @@
           <button class="btn ghost" id="regenBtn" type="button">Regenerate</button>
           <button class="btn ghost" id="copyAllBtn" type="button">Copy all</button>
           <button class="btn ghost" id="dlWeekBtn" type="button">Download .md</button>
+          <button class="btn ghost" id="dlIcsBtn" type="button">Calendar .ics</button>
         </div>
       </div>
       <div class="up-next" id="upNext" hidden></div>

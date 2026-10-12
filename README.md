@@ -23,8 +23,10 @@ One input → a full week content calendar:
 4. **Copy → post → check off.** Save favorites to your content bank for reuse.
 5. **"Up next" scheduler** — always shows your next posting slot (skips days you've marked posted).
 6. **Character counts** — every caption shows its length and warns when it's too long for X/Instagram/LinkedIn.
-7. **Copy all / download week** — one click copies all 7 posts or downloads the week as a Markdown file.
+7. **Copy all / download week** — one click copies all 7 posts or downloads the week as a Markdown file; **Calendar .ics** exports the posting schedule at each post's best time.
 8. **Content bank search + backup** — search saved posts; export/import the bank as JSON for safekeeping.
+9. **Business profile** — save your social handle, phone, and a call-to-action once; it's appended to every copied/saved/downloaded post.
+10. **Posting stats** — marking days posted builds a history: current streak and posts-this-month show in the Up next bar.
 
 Everything runs **100% in the browser**. No account, no server, no uploads — your business info never leaves the device. Works offline by just opening `index.html`.
 
