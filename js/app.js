@@ -122,8 +122,17 @@
     saveJson(LS_WEEK, { week, postedDays });
     renderWeek();
     $('#results').hidden = false;
-    $('#results').scrollIntoView({ behavior: 'smooth' });
+    setComposerCollapsed(true);
+    $('#plannerView').scrollIntoView({ behavior: 'smooth' });
     toast('Your week of posts is ready!');
+  }
+
+  function setComposerCollapsed(collapsed) {
+    const card = $('#inputCard');
+    if (!card) return;
+    card.classList.toggle('collapsed', collapsed);
+    const t = $('#composerToggle');
+    if (t) t.textContent = collapsed ? 'Expand' : 'Collapse';
   }
 
   // -------------------------------------------------------------- render
@@ -153,14 +162,74 @@
     $('#weekTitle').textContent = `${week.businessName} — this week's posts`;
     $('#weekSub').textContent =
       `${week.tradeLabel} · ${week.posts.length} posts · best times included`;
+    const empty = $('#weekEmpty');
+    if (empty) empty.hidden = true;
     const grid = $('#weekGrid');
+    grid.hidden = false;
+    const wa = $('#weekActions');
+    if (wa) wa.hidden = false;
     grid.innerHTML = '';
-    week.posts.forEach((post) => {
-      grid.appendChild(postCard(post));
-    });
+    // 7 day columns, Buffer week-view pattern: one post per day at its best time.
+    const byDay = {};
+    week.posts.forEach((post) => { byDay[post.dayIndex] = post; });
+    for (let d = 0; d < 7; d++) {
+      const post = byDay[d];
+      const col = document.createElement('div');
+      col.className = 'day-col';
+      const head = document.createElement('div');
+      head.className = 'day-head';
+      head.innerHTML = `<span class="day-name">${esc(post ? post.day : 'Day ' + (d + 1))}</span>` +
+        (post ? `<span class="day-time">${esc(post.bestTime)}</span>` : '');
+      col.appendChild(head);
+      if (post) {
+        const card = postCard(post, true);
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return; // tone tabs stay inline
+          openDrawer(post);
+        });
+        col.appendChild(card);
+      } else {
+        col.innerHTML += '<div class="day-off"><span>No post</span></div>';
+      }
+      grid.appendChild(col);
+    }
+    renderList();
+    applyView();
     renderUpNext();
     renderTagWarning();
     renderBank();
+  }
+
+  /* List view: the queue, sorted by day — Buffer's Calendar/List toggle. */
+  function renderList() {
+    const list = $('#listView');
+    if (!list) return;
+    list.innerHTML = '';
+    week.posts.forEach((post) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'list-row' + (postedDays[post.dayIndex] ? ' posted' : '');
+      const cap = post.captions[tone] || '';
+      row.innerHTML =
+        `<span class="lr-day">${esc(post.day)}</span>` +
+        `<span class="lr-time">${esc(post.bestTime)}</span>` +
+        `<span class="lr-theme">${esc(post.theme)}</span>` +
+        `<span class="lr-cap">${esc(cap.slice(0, 90))}${cap.length > 90 ? '…' : ''}</span>` +
+        `<span class="status-pill${postedDays[post.dayIndex] ? ' done' : ''}">${postedDays[post.dayIndex] ? 'Posted' : 'Scheduled'}</span>`;
+      row.addEventListener('click', () => openDrawer(post));
+      list.appendChild(row);
+    });
+  }
+
+  let plannerView = 'calendar';
+  function applyView() {
+    const grid = $('#weekGrid'), list = $('#listView');
+    const cal = plannerView === 'calendar';
+    if (grid) grid.hidden = !cal || !week;
+    if (list) list.hidden = cal || !week;
+    const vc = $('#viewCal'), vl = $('#viewList');
+    if (vc) vc.classList.toggle('active', cal);
+    if (vl) vl.classList.toggle('active', !cal);
   }
 
   /* Warn when the same hashtags repeat across most of the week — it reads as spammy. */
@@ -182,10 +251,27 @@
       ' — repeating the same tags daily reads as spammy. Consider dropping a few on some days.';
   }
 
-  function postCard(post) {
+  function postCard(post, compact) {
     const card = document.createElement('article');
-    card.className = 'post-card' + (postedDays[post.dayIndex] ? ' posted' : '');
+    card.className = 'post-card' + (postedDays[post.dayIndex] ? ' posted' : '') + (compact ? ' compact' : '');
     card.dataset.day = post.dayIndex;
+
+    if (compact) {
+      // Week-grid card: time, theme, caption snippet, tags, status — click opens the composer drawer.
+      const cap = post.captions[tone] || '';
+      const shownTags = post.hashtags.slice(0, 3).map((h) => `<span class="htag">${esc(h)}</span>`).join(' ');
+      const extra = post.hashtags.length > 3 ? ` <span class="htag more">+${post.hashtags.length - 3}</span>` : '';
+      card.innerHTML = `
+        <div class="pc-top"><span class="pc-time">${esc(post.bestTime)}</span>
+          <span class="status-pill${postedDays[post.dayIndex] ? ' done' : ''}">${postedDays[post.dayIndex] ? 'Posted' : 'Scheduled'}</span></div>
+        <div class="pc-theme">${esc(post.theme)}</div>
+        ${photoDataUrl ? `<img class="post-photo" src="${photoDataUrl}" alt="Job photo">` : ''}
+        <p class="pc-snippet">${esc(cap.slice(0, 110))}${cap.length > 110 ? '…' : ''}</p>
+        <div class="htags">${shownTags}${extra}</div>
+        <div class="pc-why" title="${esc(post.bestTimeReason)}">Best time · ${esc(post.bestTimeReason.split('.')[0])}</div>
+      `;
+      return card;
+    }
 
     const tags = post.hashtags.map((h) => `<span class="htag">${esc(h)}</span>`).join(' ');
 
@@ -298,6 +384,83 @@
     });
 
     return card;
+  }
+
+  // ---------------------------------------------------------- composer drawer
+  let drawerPost = null;
+  let drawerNet = 'instagram';
+
+  function openDrawer(post) {
+    drawerPost = post;
+    $('#drawerTitle').textContent = `${post.day} — ${post.theme}`;
+    $('#drawerSub').textContent = `Best time ${post.bestTime} · ${post.bestTimeReason}`;
+    const body = $('#drawerBody');
+    body.innerHTML = '';
+    const full = postCard(post, false);
+    // Keep the drawer's tone tabs in sync with the network preview.
+    full.querySelectorAll('.tone-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        setTimeout(() => renderNetPreview(drawerPost, full._tone || tone), 0);
+      });
+    });
+    body.appendChild(full);
+    renderNetPreview(post, full._tone || tone);
+    $('#drawer').hidden = false;
+    $('#drawerVeil').hidden = false;
+    document.body.classList.add('drawer-open');
+  }
+
+  function closeDrawer() {
+    $('#drawer').hidden = true;
+    $('#drawerVeil').hidden = true;
+    document.body.classList.remove('drawer-open');
+    drawerPost = null;
+    if (week) { renderWeek(); } // reflect posted/saved changes made in the drawer
+  }
+
+  /* Buffer-composer pattern: see the caption as a real post per network. */
+  function renderNetPreview(post, toneUsed) {
+    const box = $('#netPreview');
+    if (!box || !post) return;
+    const cap = post.captions[toneUsed] || post.captions[tone] || '';
+    const tags = post.hashtags.join(' ');
+    const profile = getProfile();
+    const name = week ? week.businessName : 'Your business';
+    const handle = profile.handle || '@yourbusiness';
+    const initial = (name.trim()[0] || 'S').toUpperCase();
+    const img = photoDataUrl
+      ? `<img class="np-img" src="${photoDataUrl}" alt="Job photo">`
+      : `<div class="np-img np-ph" aria-hidden="true"><span>${esc(initial)}</span></div>`;
+
+    if (drawerNet === 'x') {
+      const chk = SocialSpark.platformCheck(cap + '\n' + tags);
+      box.innerHTML = `
+        <div class="np-x">
+          <div class="np-row"><span class="np-avatar">${esc(initial)}</span>
+            <div><div class="np-name">${esc(name)}</div><div class="np-handle">${esc(handle)}</div></div></div>
+          <p class="np-cap">${esc(cap)}</p>
+          <p class="np-tags">${esc(tags)}</p>
+          <div class="np-count${chk.over.includes('X') ? ' warn' : ''}">${chk.chars} / 280 characters</div>
+        </div>`;
+    } else if (drawerNet === 'facebook') {
+      box.innerHTML = `
+        <div class="np-fb">
+          <div class="np-row"><span class="np-avatar">${esc(initial)}</span>
+            <div><div class="np-name">${esc(name)}</div><div class="np-handle">Sponsored</div></div></div>
+          <p class="np-cap">${esc(cap)}</p>
+          ${img}
+          <p class="np-tags">${esc(tags)}</p>
+        </div>`;
+    } else {
+      box.innerHTML = `
+        <div class="np-ig">
+          <div class="np-row"><span class="np-avatar">${esc(initial)}</span>
+            <div class="np-name">${esc(name)}</div></div>
+          ${img}
+          <p class="np-cap"><strong>${esc(handle.replace(/^@/, ''))}</strong> ${esc(cap)}</p>
+          <p class="np-tags">${esc(tags)}</p>
+        </div>`;
+    }
   }
 
   // ---------------------------------------------------------- content bank
@@ -476,6 +639,50 @@
         btn.classList.add('active');
         tone = btn.dataset.tone;
         if (week) renderWeek();
+      });
+    });
+
+    // Planner chrome: view toggle, rail nav, drawer, composer collapse.
+    const vc = $('#viewCal'), vl = $('#viewList');
+    if (vc) vc.addEventListener('click', () => { plannerView = 'calendar'; applyView(); });
+    if (vl) vl.addEventListener('click', () => { plannerView = 'list'; applyView(); });
+
+    $$('.rail-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        $$('.rail-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        const t = document.getElementById(btn.dataset.target);
+        if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+
+    const goBrief = () => {
+      setComposerCollapsed(false);
+      $('#inputCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $$('.rail-btn').forEach((b) => b.classList.toggle('active', b.dataset.target === 'inputCard'));
+    };
+    const nwb = $('#newWeekBtn');
+    if (nwb) nwb.addEventListener('click', goBrief);
+    const ebb = $('#emptyBriefBtn');
+    if (ebb) ebb.addEventListener('click', goBrief);
+    const ct = $('#composerToggle');
+    if (ct) ct.addEventListener('click', () => setComposerCollapsed(!$('#inputCard').classList.contains('collapsed')));
+
+    const dc = $('#drawerClose'), dv = $('#drawerVeil');
+    if (dc) dc.addEventListener('click', closeDrawer);
+    if (dv) dv.addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && drawerPost) closeDrawer();
+    });
+    $$('.net-tabs button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        $$('.net-tabs button').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        drawerNet = btn.dataset.net;
+        if (drawerPost) {
+          const full = $('#drawerBody .post-card');
+          renderNetPreview(drawerPost, (full && full._tone) || tone);
+        }
       });
     });
 

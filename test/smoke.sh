@@ -137,6 +137,29 @@ for id in dlWeekBtn copyAllBtn upNext bankSearch bankExportBtn bankImportBtn ban
   if grep -q "id=\"$id\"" index.html; then ok "index.html has #$id"; else bad "index.html missing #$id"; fi
 done
 
+# 22b: planner redesign — rail, view toggle, drawer, day columns, composer
+for id in viewCal viewList newWeekBtn weekEmpty weekActions emptyBriefBtn composerToggle composerBody drawer drawerVeil drawerClose drawerTitle drawerSub drawerBody netPreview inputCard bankCard profileCard plannerView listView; do
+  if grep -q "id=\"$id\"" index.html; then ok "index.html has #$id"; else bad "index.html missing planner #$id"; fi
+done
+for needle in openDrawer closeDrawer renderNetPreview renderList applyView setComposerCollapsed postCard\(post,\ true drawerNet; do
+  if grep -q "$needle" js/app.js; then ok "app.js wires $needle"; else bad "app.js missing $needle"; fi
+done
+if grep -q 'class="rail"' index.html && grep -q "day-col" js/app.js && grep -q 'data-net="instagram"' index.html; then
+  ok "planner shell: rail + day columns + network tabs"
+else
+  bad "planner shell incomplete"
+fi
+if grep -q '\.week-grid' css/style.css && grep -q '\.drawer' css/style.css && grep -q '\.status-pill' css/style.css; then
+  ok "style.css has planner/drawer/status styles"
+else
+  bad "style.css missing planner styles"
+fi
+if grep -q 'border-radius:\s*[1-9]' css/style.css; then
+  bad "rounded corners found in css"
+else
+  ok "no rounded corners in css"
+fi
+
 # 23: app.js uses the new engine functions
 for fn in weekToMarkdown weekToPlainText platformCheck nextPostAt parseBankImport renderUpNext; do
   if grep -q "$fn" js/app.js; then ok "app.js uses $fn"; else bad "app.js missing $fn"; fi

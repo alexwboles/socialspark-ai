@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SocialSpark AI — Turn one job into a week of posts</title>
+  <title>SocialSpark AI — Weekly content planner</title>
   <meta name="description" content="AI content engine for local businesses: describe one job, get 7 days of social posts with captions, hashtags and best times to post.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,108 +11,172 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="wrap topbar-inner">
-      <div class="logo">SocialSpark <span class="ai">AI</span></div>
-      <p class="tagline">One job in. A week of posts out.</p>
-    </div>
-  </header>
+<div class="app">
 
-  <main class="wrap">
-    <section class="card intro">
-      <h1>Never stare at a <em>blank caption box</em> again</h1>
-      <p class="lede">Describe the job you just finished (add a photo if you like) and SocialSpark writes
-        <strong>7 days of posts</strong> — captions in 3 tones, hashtags, and the best time to post each day.
-        Everything runs in your browser. Nothing is uploaded anywhere.</p>
-      <ol class="steps">
-        <li><strong>1.</strong> Tell us about the job</li>
-        <li><strong>2.</strong> Get your week of posts</li>
-        <li><strong>3.</strong> Copy, post, get customers</li>
-      </ol>
-    </section>
+  <!-- ============ ICON RAIL (Buffer pattern) ============ -->
+  <nav class="rail" aria-label="Primary">
+    <div class="rail-logo" aria-hidden="true">S</div>
+    <button class="rail-btn active" data-target="plannerView" aria-label="Planner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span>Planner</span>
+    </button>
+    <button class="rail-btn" data-target="bankCard" aria-label="Content bank">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+      <span>Bank</span>
+    </button>
+    <button class="rail-btn" data-target="profileCard" aria-label="Business profile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Profile</span>
+    </button>
+    <button class="rail-btn" data-target="inputCard" aria-label="New brief">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Brief</span>
+    </button>
+  </nav>
 
-    <section class="card" id="inputCard">
-      <h2>Describe the job</h2>
-      <div class="form-grid">
-        <label>Business name
-          <input type="text" id="bizName" placeholder="e.g. Brightline Plumbing Co." maxlength="60">
-        </label>
-        <label>Trade
-          <select id="trade"></select>
-        </label>
+  <div class="main">
+    <!-- ============ TOP BAR ============ -->
+    <header class="topbar">
+      <div class="tb-left">
+        <div class="tb-brand">SocialSpark <span class="ai">AI</span></div>
+        <span class="tb-sub" id="weekTitle">Weekly planner</span>
       </div>
-      <div class="form-grid">
-        <label>Social handle <span class="hint">(optional)</span>
-          <input type="text" id="bizHandle" placeholder="@brightlineplumbing" maxlength="40">
-        </label>
-        <label>Phone <span class="hint">(optional — used in calls to action)</span>
-          <input type="text" id="bizPhone" placeholder="(555) 123-4567" maxlength="30">
-        </label>
-      </div>
-      <label>Call to action <span class="hint">(optional — appended to every copied post)</span>
-        <input type="text" id="bizCta" placeholder="e.g. Call today for a free quote!" maxlength="120">
-      </label>
-      <label>What did you do? <span class="hint">(a sentence or two is plenty)</span>
-        <textarea id="jobDesc" rows="3" maxlength="500"
-          placeholder="e.g. Replaced a leaking water heater and repiped the laundry room with PEX"></textarea>
-      </label>
-      <label class="photo-label">Job photo <span class="hint">(optional — stays on your device)</span>
-        <input type="file" id="photo" accept="image/*">
-      </label>
-      <img id="photoPreview" class="photo-preview" alt="Job photo preview" hidden>
-
-      <div class="form-actions">
-        <button class="btn ghost" id="surpriseBtn" type="button">Try a sample job</button>
-        <button class="btn primary big" id="generateBtn" type="button">Generate my week</button>
-      </div>
-
-      <div class="global-tone">
-        <span class="global-tone-label">Default tone:</span>
-        <button class="tone-tab" data-tone="professional" type="button">Professional</button>
-        <button class="tone-tab active" data-tone="friendly" type="button">Friendly</button>
-        <button class="tone-tab" data-tone="funny" type="button">Funny</button>
-      </div>
-    </section>
-
-    <section class="card" id="results" hidden>
-      <div class="results-head">
-        <div>
-          <h2 id="weekTitle">Your week of posts</h2>
-          <p class="muted" id="weekSub"></p>
+      <div class="tb-right">
+        <div class="view-toggle" role="group" aria-label="Planner view">
+          <button id="viewCal" class="active" type="button">Calendar</button>
+          <button id="viewList" type="button">List</button>
         </div>
-        <div class="results-actions">
+        <button class="btn primary" id="newWeekBtn" type="button">+ New week</button>
+      </div>
+    </header>
+
+    <div class="up-next" id="upNext" hidden></div>
+    <p class="tb-sub2 muted" id="weekSub"></p>
+
+    <!-- ============ PLANNER ============ -->
+    <main id="plannerView">
+      <section id="results">
+        <div class="week-empty" id="weekEmpty">
+          <div class="empty-ill" aria-hidden="true"><span>S</span></div>
+          <h2>Plan your week in one go</h2>
+          <p>Describe the job you just finished below and SocialSpark writes <strong>7 days of posts</strong> — captions in 3 tones, hashtags, and the best time to post each day.</p>
+          <ol class="empty-steps">
+            <li><strong>1.</strong> Brief the job</li>
+            <li><strong>2.</strong> Get your week</li>
+            <li><strong>3.</strong> Copy, post, get customers</li>
+          </ol>
+          <button class="btn primary" id="emptyBriefBtn" type="button">Write the brief</button>
+        </div>
+        <div class="week-grid" id="weekGrid" hidden></div>
+        <div class="list-view" id="listView" hidden></div>
+        <div class="week-actions" id="weekActions" hidden>
           <button class="btn ghost" id="regenBtn" type="button">Regenerate</button>
           <button class="btn ghost" id="copyAllBtn" type="button">Copy all</button>
           <button class="btn ghost" id="dlWeekBtn" type="button">Download .md</button>
           <button class="btn ghost" id="dlIcsBtn" type="button">Calendar .ics</button>
         </div>
-      </div>
-      <div class="up-next" id="upNext" hidden></div>
-      <div class="week-grid" id="weekGrid"></div>
-    </section>
+      </section>
 
-    <section class="card" id="bankCard">
-      <h2>Content bank</h2>
-      <p class="muted">Your saved favorites live here — reuse them anytime.</p>
-      <div class="bank-toolbar">
-        <input type="search" id="bankSearch" placeholder="Search saved posts…" aria-label="Search content bank">
-        <button class="btn small ghost" id="bankExportBtn" type="button">Export JSON</button>
-        <button class="btn small ghost" id="bankImportBtn" type="button">Import JSON</button>
-        <input type="file" id="bankImportFile" accept="application/json" hidden>
-      </div>
-      <p class="muted empty" id="bankEmpty">Nothing saved yet. Hit <strong>Save</strong> on any post above.</p>
-      <div id="bankList" class="bank-list"></div>
-    </section>
+      <!-- ============ COMPOSER / BRIEF ============ -->
+      <section class="card composer" id="inputCard">
+        <div class="composer-head">
+          <div>
+            <h2>The brief</h2>
+            <p class="muted">One job in. A week of posts out. Everything runs in your browser — nothing is uploaded anywhere.</p>
+          </div>
+          <button class="btn ghost small" id="composerToggle" type="button">Collapse</button>
+        </div>
+        <div class="composer-body" id="composerBody">
+          <div class="form-grid">
+            <label>Business name
+              <input type="text" id="bizName" placeholder="e.g. Brightline Plumbing Co." maxlength="60">
+            </label>
+            <label>Trade
+              <select id="trade"></select>
+            </label>
+          </div>
+          <label>What did you do? <span class="hint">(a sentence or two is plenty)</span>
+            <textarea id="jobDesc" rows="3" maxlength="500"
+              placeholder="e.g. Replaced a leaking water heater and repiped the laundry room with PEX"></textarea>
+          </label>
+          <label class="photo-label">Job photo <span class="hint">(optional — stays on your device)</span>
+            <input type="file" id="photo" accept="image/*">
+          </label>
+          <img id="photoPreview" class="photo-preview" alt="Job photo preview" hidden>
+          <div class="form-actions">
+            <button class="btn ghost" id="surpriseBtn" type="button">Try a sample job</button>
+            <button class="btn primary big" id="generateBtn" type="button">Generate my week</button>
+          </div>
+          <div class="global-tone">
+            <span class="global-tone-label">Default tone:</span>
+            <button class="tone-tab" data-tone="professional" type="button">Professional</button>
+            <button class="tone-tab active" data-tone="friendly" type="button">Friendly</button>
+            <button class="tone-tab" data-tone="funny" type="button">Funny</button>
+          </div>
+        </div>
+      </section>
 
-    <footer class="foot">
-      <p>SocialSpark AI · 100% local — your business info never leaves this device. ·
-        <a href="https://github.com/alexwboles/socialspark-ai">GitHub</a></p>
-    </footer>
-  </main>
+      <!-- ============ CONTENT BANK ============ -->
+      <section class="card" id="bankCard">
+        <h2>Content bank</h2>
+        <p class="muted">Your saved favorites live here — reuse them anytime.</p>
+        <div class="bank-toolbar">
+          <input type="search" id="bankSearch" placeholder="Search saved posts…" aria-label="Search content bank">
+          <button class="btn small ghost" id="bankExportBtn" type="button">Export JSON</button>
+          <button class="btn small ghost" id="bankImportBtn" type="button">Import JSON</button>
+          <input type="file" id="bankImportFile" accept="application/json" hidden>
+        </div>
+        <p class="muted empty" id="bankEmpty">Nothing saved yet. Hit <strong>Save</strong> on any post above.</p>
+        <div id="bankList" class="bank-list"></div>
+      </section>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      <!-- ============ BUSINESS PROFILE ============ -->
+      <section class="card" id="profileCard">
+        <h2>Business profile</h2>
+        <p class="muted">Saved once — appended to every copied, shared, or downloaded post.</p>
+        <div class="form-grid">
+          <label>Social handle <span class="hint">(optional)</span>
+            <input type="text" id="bizHandle" placeholder="@brightlineplumbing" maxlength="40">
+          </label>
+          <label>Phone <span class="hint">(optional — used in calls to action)</span>
+            <input type="text" id="bizPhone" placeholder="(555) 123-4567" maxlength="30">
+          </label>
+        </div>
+        <label>Call to action <span class="hint">(optional — appended to every copied post)</span>
+          <input type="text" id="bizCta" placeholder="e.g. Call today for a free quote!" maxlength="120">
+        </label>
+      </section>
 
-  <script src="js/generator.js"></script>
-  <script src="js/app.js"></script>
+      <footer class="foot">
+        <p>SocialSpark AI · 100% local — your business info never leaves this device. ·
+          <a href="https://github.com/alexwboles/socialspark-ai">GitHub</a></p>
+      </footer>
+    </main>
+  </div>
+</div>
+
+<!-- ============ POST DRAWER (composer) ============ -->
+<div class="drawer-veil" id="drawerVeil" hidden></div>
+<aside class="drawer" id="drawer" aria-label="Post composer" hidden>
+  <div class="drawer-head">
+    <div>
+      <h2 id="drawerTitle">Post</h2>
+      <p class="muted" id="drawerSub"></p>
+    </div>
+    <button class="icon-btn" id="drawerClose" type="button" aria-label="Close composer">✕</button>
+  </div>
+  <div class="net-tabs" role="group" aria-label="Network preview">
+    <button data-net="instagram" class="active" type="button">Instagram</button>
+    <button data-net="x" type="button">X</button>
+    <button data-net="facebook" type="button">Facebook</button>
+  </div>
+  <div class="net-preview" id="netPreview"></div>
+  <div id="drawerBody"></div>
+</aside>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="js/generator.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
