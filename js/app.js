@@ -159,7 +159,27 @@
       grid.appendChild(postCard(post));
     });
     renderUpNext();
+    renderTagWarning();
     renderBank();
+  }
+
+  /* Warn when the same hashtags repeat across most of the week — it reads as spammy. */
+  function renderTagWarning() {
+    let warn = $('#tagWarn');
+    if (!warn) {
+      warn = document.createElement('div');
+      warn.id = 'tagWarn';
+      warn.className = 'tag-warn';
+      const grid = $('#weekGrid');
+      grid.parentNode.insertBefore(warn, grid);
+    }
+    if (!week) { warn.hidden = true; return; }
+    const rep = SocialSpark.hashtagReport(week);
+    if (!rep.overused.length) { warn.hidden = true; return; }
+    warn.hidden = false;
+    warn.innerHTML = '<strong>Hashtag check:</strong> ' +
+      rep.overused.map((o) => `${esc(o.tag)} appears in ${o.days} of 7 posts`).join(' · ') +
+      ' — repeating the same tags daily reads as spammy. Consider dropping a few on some days.';
   }
 
   function postCard(post) {
@@ -187,6 +207,8 @@
       <div class="best-time">Best time: <strong>${esc(post.bestTime)}</strong><span class="why">${esc(post.bestTimeReason)}</span></div>
       <div class="post-actions">
         <button class="btn small copy-btn">Copy</button>
+        <button class="btn small ghost xcopy-btn" title="Trim to 280 characters and copy">Copy for X</button>
+        <button class="btn small ghost share-btn">Share</button>
         <button class="btn small ghost bank-btn">Save</button>
       </div>
     `;
@@ -238,6 +260,30 @@
 
     card.querySelector('.bank-btn').addEventListener('click', () => {
       saveToBank(post, card._tone || tone);
+    });
+
+    card.querySelector('.xcopy-btn').addEventListener('click', () => {
+      const r = SocialSpark.trimForX(
+        { captions: post.captions, hashtags: post.hashtags }, card._tone || tone,
+        getProfile()
+      );
+      copyText(r.text, r.trimmed ? 'Trimmed to 280 characters — copied!' : 'Copied (already fits X).');
+    });
+
+    card.querySelector('.share-btn').addEventListener('click', async () => {
+      const text = SocialSpark.formatPost(
+        { captions: post.captions, hashtags: post.hashtags }, card._tone || tone,
+        getProfile()
+      );
+      // Native share sheet when available (mobile: Instagram, Nextdoor,
+      // Facebook…), X web intent as the desktop fallback.
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: `${week.businessName} — ${post.day}`, text });
+          return;
+        } catch (_) { /* cancelled — fall through to X */ }
+      }
+      window.open(SocialSpark.shareLinks(text).x, '_blank', 'noopener');
     });
 
     card.querySelector('.posted-btn').addEventListener('click', () => {

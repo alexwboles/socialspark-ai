@@ -493,6 +493,95 @@ const SocialSpark = (() => {
     return items;
   }
 
+  /** One-click share targets for a post's copy-ready text.
+   *  X has a real text-only web intent. Facebook's sharer works best with a
+   *  URL, so the quote param is best-effort there. Instagram and Nextdoor
+   *  offer no web share intents at all — the UI falls back to copy for those. */
+  function shareLinks(text) {
+    const t = encodeURIComponent(String(text || ''));
+    return {
+      x: 'https://twitter.com/intent/tweet?text=' + t,
+      facebook: 'https://www.facebook.com/sharer/sharer.php?quote=' + t,
+    };
+  }
+
+  const X_LIMIT = 280;
+  const cps = (s) => [...String(s || '')].length; // code points, not UTF-16 units
+
+  /** Trim a post's copy-ready text to fit X's 280-character limit.
+   *  Keeps the CTA line and as many hashtags as fit; shortens the caption
+   *  at sentence (then word) boundaries and marks the cut with an ellipsis.
+   *  Returns {text, trimmed}. */
+  function trimForX(post, tone, profile) {
+    const t = ['professional', 'friendly', 'funny'].includes(tone) ? tone : 'friendly';
+    const caption = String((post.captions || {})[t] || '');
+    const tags = (post.hashtags || []).join(' ');
+    const cta = withCallToAction('', profile); // '' or '\n\n<cta bits>'
+    const full = formatPost(post, tone, profile);
+    if (cps(full) <= X_LIMIT) return { text: full, trimmed: false };
+
+    // Shrink the hashtag block first so the caption keeps max room.
+    let tagBlock = tags;
+    while (tagBlock && cps('\n\n' + tagBlock + cta) > X_LIMIT - 40) {
+      const parts = tagBlock.split(' ');
+      parts.pop();
+      tagBlock = parts.join(' ');
+    }
+    const suffix = (tagBlock ? '\n\n' + tagBlock : '') + cta;
+    let budget = X_LIMIT - cps(suffix) - 1; // room for the ellipsis
+    if (budget < 20) {
+      // Pathological: even tags+CTA barely fit. Keep first tag + CTA only.
+      const first = (post.hashtags || [])[0] || '';
+      const minSuffix = (first ? '\n\n' + first : '') + cta;
+      budget = X_LIMIT - cps(minSuffix) - 1;
+      const cut = hardCut(caption, Math.max(10, budget));
+      return { text: cut + '…' + minSuffix, trimmed: true };
+    }
+    const cut = smartCut(caption, budget);
+    return { text: cut + '…' + suffix, trimmed: true };
+  }
+
+  function hardCut(s, budget) {
+    const chars = [...s];
+    if (chars.length <= budget) return s;
+    let cut = chars.slice(0, budget).join('');
+    const sp = cut.lastIndexOf(' ');
+    if (sp > budget * 0.5) cut = cut.slice(0, sp);
+    return cut.replace(/[.,;:!?]+$/, '');
+  }
+
+  function smartCut(s, budget) {
+    if (cps(s) <= budget) return s;
+    const sentences = String(s).split(/(?<=[.!?])\s+/);
+    let acc = '';
+    for (const sent of sentences) {
+      const next = acc ? acc + ' ' + sent : sent;
+      if (cps(next) > budget) break;
+      acc = next;
+    }
+    if (acc && cps(acc) >= Math.min(budget * 0.4, 40)) return acc;
+    return hardCut(s, budget);
+  }
+
+  /** Hashtag reuse across the week: {tags:[{tag, days, posts}], overused, threshold}.
+   *  Tags appearing on >= threshold days (default 5 of 7) read as spammy —
+   *  the UI warns so the owner can vary them. */
+  function hashtagReport(week, overuseAt) {
+    const threshold = overuseAt || 5;
+    const counts = {};
+    (week.posts || []).forEach((p, i) => {
+      (p.hashtags || []).forEach((h) => {
+        counts[h] = counts[h] || { tag: h, days: 0, posts: [] };
+        counts[h].days += 1;
+        counts[h].posts.push(i);
+      });
+    });
+    const tags = Object.values(counts).sort(
+      (a, b) => b.days - a.days || a.tag.localeCompare(b.tag)
+    );
+    return { tags, overused: tags.filter((x) => x.days >= threshold), threshold };
+  }
+
   /** Placeholder for optional OpenAI enhancement — never required. */
   function openAiAvailable() {
     try {
@@ -523,6 +612,10 @@ const SocialSpark = (() => {
     platformCheck,
     nextPostAt,
     parseBankImport,
+    shareLinks,
+    trimForX,
+    hashtagReport,
+    X_LIMIT,
     openAiAvailable,
   };
 })();

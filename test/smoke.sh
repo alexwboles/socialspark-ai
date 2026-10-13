@@ -150,6 +150,22 @@ for fn in sanitizeProfile withCallToAction weekToICS postingStats; do
     bad "generator missing $fn"
   fi
 done
+# 25: sweep features — share intents, trim-for-X, hashtag report
+for fn in shareLinks trimForX hashtagReport; do
+  if node -e "const g=require('./js/generator.js'); if(typeof g.$fn!=='function') throw new Error('no fn')"; then
+    ok "generator exports $fn"
+  else
+    bad "generator missing $fn"
+  fi
+done
+for needle in xcopy-btn share-btn renderTagWarning; do
+  if grep -q "$needle" js/app.js; then ok "app.js wires $needle"; else bad "app.js missing $needle"; fi
+done
+if grep -q 'tag-warn' css/style.css; then
+  ok "style.css has hashtag warning banner"
+else
+  bad "style.css missing tag-warn"
+fi
 for needle in bizHandle dlIcsBtn postedLog getProfile; do
   if grep -q "$needle" js/app.js; then ok "app.js wires $needle"; else bad "app.js missing $needle"; fi
 done

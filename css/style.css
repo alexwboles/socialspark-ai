@@ -232,3 +232,8 @@ input[type="file"] { display: block; margin-top: 8px; font-size: 13.5px; color: 
   .week-grid { grid-template-columns: 1fr; }
   .results-head { flex-direction: column; }
 }
+
+/* ---------- hashtag reuse warning ---------- */
+.tag-warn { border-left: 4px solid #d97706; background: #fffbeb; padding: 10px 14px; margin: 10px 0 14px;
+  font-size: 14px; color: #78350f; }
+.tag-warn strong { color: #92400e; }

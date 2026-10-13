@@ -158,6 +158,47 @@ const empty=g.postingStats([],'2026-10-12T12:00:00Z');
 if(empty.streak!==0||empty.total!==0) throw new Error('empty log should be zeros');
 "; then ok "flow 13: postingStats streak + monthly counts"; else bad "flow 13 failed"; fi
 
+# Flow 14: trimForX — fits 280 chars, keeps CTA + hashtags, marks trims
+if run "
+const g=require('./js/generator.js');
+const w=g.generateWeek({businessName:'Trim Co',trade:'plumber',jobDescription:'Replaced a leaking water heater, repiped the laundry room with PEX, and installed a new pressure regulator valve'});
+const p=w.posts[0];
+const prof={handle:'@trimco',phone:'(555) 000-1111',cta:'Call today for a free quote!'};
+const full=g.formatPost({captions:p.captions,hashtags:p.hashtags},'friendly',prof);
+if([...full].length<=280) throw new Error('test needs an over-long post, got '+[...full].length);
+const r=g.trimForX({captions:p.captions,hashtags:p.hashtags},'friendly',prof);
+if(!r.trimmed) throw new Error('should report trimmed');
+if([...r.text].length>280) throw new Error('still over 280: '+[...r.text].length);
+if(!r.text.includes('Call today for a free quote!')) throw new Error('CTA dropped');
+if(!r.text.includes('#')) throw new Error('all hashtags dropped');
+if(!r.text.includes('…')) throw new Error('no ellipsis marking the cut');
+const short=g.trimForX({captions:{friendly:'Hi.'},hashtags:['#a']},'friendly',{});
+if(short.trimmed) throw new Error('short post should not be trimmed');
+"; then ok "flow 14: trimForX fits X limit, keeps CTA + tags"; else bad "flow 14 failed"; fi
+
+# Flow 15: hashtagReport — flags tags repeated across 5+ days
+if run "
+const g=require('./js/generator.js');
+const w=g.generateWeek({businessName:'Tag Co',trade:'roofer',jobDescription:'Replaced the whole roof with architectural shingles and new flashing everywhere'});
+const rep=g.hashtagReport(w);
+if(!rep.tags.length) throw new Error('no tags counted');
+const top=rep.tags[0];
+if(top.days!==7) throw new Error('trade tag should appear all 7 days, got '+top.days);
+if(!rep.overused.length) throw new Error('expected overused tags');
+if(!rep.overused.every(o=>o.days>=5)) throw new Error('overused threshold wrong');
+const clean=g.hashtagReport({posts:[{hashtags:['#a']},{hashtags:['#b']}]});
+if(clean.overused.length) throw new Error('no tag should be overused here');
+"; then ok "flow 15: hashtagReport flags week-long tag repetition"; else bad "flow 15 failed"; fi
+
+# Flow 16: shareLinks — X + Facebook web intents
+if run "
+const g=require('./js/generator.js');
+const s=g.shareLinks('Hello world #test');
+if(!s.x.startsWith('https://twitter.com/intent/tweet?text=')) throw new Error('bad X intent: '+s.x);
+if(!s.x.includes(encodeURIComponent('#test'))) throw new Error('text not encoded in X intent');
+if(!s.facebook.includes('facebook.com/sharer/sharer.php')) throw new Error('bad FB intent: '+s.facebook);
+"; then ok "flow 16: shareLinks builds X + Facebook intents"; else bad "flow 16 failed"; fi
+
 echo ""
 echo "e2e: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

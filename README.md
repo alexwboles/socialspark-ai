@@ -27,6 +27,9 @@ One input → a full week content calendar:
 8. **Content bank search + backup** — search saved posts; export/import the bank as JSON for safekeeping.
 9. **Business profile** — save your social handle, phone, and a call-to-action once; it's appended to every copied/saved/downloaded post.
 10. **Posting stats** — marking days posted builds a history: current streak and posts-this-month show in the Up next bar.
+11. **One-click share** — every post has a Share button: the native share sheet on mobile (Instagram, Nextdoor, Facebook…) with the X web intent as the desktop fallback.
+12. **Copy for X** — trims the post to 280 characters at sentence/word boundaries (marked with …), keeping your CTA line and hashtags.
+13. **Hashtag check** — warns when the same tag repeats across 5+ of the 7 days, so the week doesn't read as spammy.
 
 Everything runs **100% in the browser**. No account, no server, no uploads — your business info never leaves the device. Works offline by just opening `index.html`.
 
@@ -76,7 +79,7 @@ bash test/e2e.sh
 ## Roadmap
 
 - [ ] Photo-aware captions (describe what's in the uploaded photo)
-- [ ] One-click share intents for Facebook / Instagram / Nextdoor
+- [x] One-click share intents for Facebook / X (Instagram and Nextdoor have no web intents — native share sheet covers them on mobile)
 - [ ] Posting reminders via the content bank
 - [ ] Multi-location profiles for franchises
 - [ ] Optional OpenAI polish pass when a key is provided
